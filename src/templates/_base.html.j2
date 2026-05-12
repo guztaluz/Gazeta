@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: 384px auto; margin: 0; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #fff;
+    color: #000;
+    -webkit-font-smoothing: none;
+    text-rendering: geometricPrecision;
+  }
+  body {
+    width: 368px;
+    padding: 12px 8px 16px 8px;
+    font-family: "JetBrains Mono", "Menlo", "DejaVu Sans Mono", monospace;
+    font-size: 16px;
+    line-height: 1.35;
+    font-weight: 500;
+  }
+  h1 { font-size: 22px; margin: 0 0 6px 0; letter-spacing: -0.5px; }
+  h2 { font-size: 18px; margin: 10px 0 4px 0; }
+  p  { margin: 0 0 10px 0; }
+  .meta { font-size: 13px; margin-bottom: 8px; }
+  .rule {
+    border: none;
+    border-top: 1px dashed #000;
+    margin: 12px 0;
+  }
+  .footer {
+    margin-top: 14px;
+    font-size: 13px;
+    line-height: 1.3;
+  }
+  .row { display: flex; justify-content: space-between; gap: 8px; }
+  .strong { font-weight: 700; }
+</style>
+</head>
+<body>
+{% block content %}{% endblock %}
+</body>
+</html>

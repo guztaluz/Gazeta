@@ -1,0 +1,51 @@
+{% extends "_base.html.j2" %}
+{% block content %}
+<h1>Bom dia, Gustavo</h1>
+<div class="meta">{{ date_human }}</div>
+<hr class="rule">
+
+{% for para in narrative_paragraphs %}
+<p>{{ para }}</p>
+{% endfor %}
+
+<hr class="rule">
+<div class="footer">
+  {% if weather and not weather.error %}
+  <div class="row">
+    <span>{{ weather.summary }}</span>
+    <span class="strong">
+      {{ weather.temp_min_c | round | int }}–{{ weather.temp_max_c | round | int }}°C
+      · {{ weather.precip_prob }}%
+    </span>
+  </div>
+  {% endif %}
+  {% if crypto and not crypto.error %}
+    {% if crypto.btc %}
+    <div class="row">
+      <span>BTC</span>
+      <span class="strong">
+        ${{ "{:,}".format(crypto.btc.price_usd | round | int) }}
+        {{ "▲" if crypto.btc.arrow == "up" else "▼" }}
+        {{ "%+.1f"|format(crypto.btc.change_24h_pct) }}%
+      </span>
+    </div>
+    {% endif %}
+    {% if crypto.eth %}
+    <div class="row">
+      <span>ETH</span>
+      <span class="strong">
+        ${{ "{:,}".format(crypto.eth.price_usd | round | int) }}
+        {{ "▲" if crypto.eth.arrow == "up" else "▼" }}
+        {{ "%+.1f"|format(crypto.eth.change_24h_pct) }}%
+      </span>
+    </div>
+    {% endif %}
+  {% endif %}
+</div>
+{% if quote and not quote.error %}
+<div class="footer" style="margin-top: 10px; font-style: italic;">
+  "{{ quote.text }}"<br>
+  <span style="font-style: normal;">— {{ quote.author }}</span>
+</div>
+{% endif %}
+{% endblock %}
