@@ -1,0 +1,42 @@
+{# Lucide-style monoline SVG icons. Use stroke=currentColor so icons inherit
+   the surrounding text color (black on body, white on inverted headers). #}
+{% macro icon(name, size=14, sw=2.5) -%}
+{%- set s = size -%}
+<span style="display:inline-flex;align-items:center;line-height:0;vertical-align:middle;">
+{%- if name == "sun" -%}
+<svg width="{{s}}" height="{{s}}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{{sw}}" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+{%- elif name == "cloud" -%}
+<svg width="{{s}}" height="{{s}}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{{sw}}" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>
+{%- elif name == "cloud-rain" -%}
+<svg width="{{s}}" height="{{s}}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{{sw}}" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M16 14v6M8 14v6M12 16v6"/></svg>
+{%- elif name == "cloud-snow" -%}
+<svg width="{{s}}" height="{{s}}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{{sw}}" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"/><path d="M8 15h.01M8 19h.01M12 17h.01M12 21h.01M16 15h.01M16 19h.01"/></svg>
+{%- elif name == "cloud-fog" -%}
+<svg width="{{s}}" height="{{s}}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{{sw}}" stroke-linecap="round" stroke-linejoin="round"><path d="M16 17H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 3 6Z"/><path d="M5 20h14M5 14h2M11 20h4"/></svg>
+{%- elif name == "cloud-lightning" -%}
+<svg width="{{s}}" height="{{s}}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{{sw}}" stroke-linecap="round" stroke-linejoin="round"><path d="M6 16.326A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 .5 8.973"/><path d="m13 12-3 5h4l-3 5"/></svg>
+{%- elif name == "calendar" -%}
+<svg width="{{s}}" height="{{s}}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{{sw}}" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+{%- elif name == "newspaper" -%}
+<svg width="{{s}}" height="{{s}}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{{sw}}" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8M15 18h-5M10 6h8v4h-8z"/></svg>
+{%- elif name == "globe" -%}
+<svg width="{{s}}" height="{{s}}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{{sw}}" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+{%- elif name == "map-pin" -%}
+<svg width="{{s}}" height="{{s}}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{{sw}}" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+{%- elif name == "trending-up" -%}
+<svg width="{{s}}" height="{{s}}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{{sw}}" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+{%- elif name == "trending-down" -%}
+<svg width="{{s}}" height="{{s}}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{{sw}}" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg>
+{%- elif name == "smile" -%}
+<svg width="{{s}}" height="{{s}}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{{sw}}" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" x2="9.01" y1="9" y2="9"/><line x1="15" x2="15.01" y1="9" y2="9"/></svg>
+{%- elif name == "quote" -%}
+<svg width="{{s}}" height="{{s}}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{{sw}}" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1Z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1Z"/></svg>
+{%- elif name == "star" -%}
+<svg width="{{s}}" height="{{s}}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{{sw}}" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+{%- elif name == "cpu" -%}
+<svg width="{{s}}" height="{{s}}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{{sw}}" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2M15 20v2M2 15h2M2 9h2M20 15h2M20 9h2M9 2v2M9 20v2"/></svg>
+{%- elif name == "coffee" -%}
+<svg width="{{s}}" height="{{s}}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="{{sw}}" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v2M14 2v2M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1"/></svg>
+{%- endif -%}
+</span>
+{%- endmacro %}

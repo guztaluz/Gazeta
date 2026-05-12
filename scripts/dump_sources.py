@@ -14,12 +14,9 @@ from src.sources import (
     calendar as calendar_src,
     crypto,
     email as email_src,
-    hackernews,
-    joke,
     news,
     quote,
     weather,
-    wikipedia,
 )
 
 
@@ -29,16 +26,13 @@ async def main() -> None:
             weather.fetch(client),
             crypto.fetch(client),
             quote.fetch(),
-            joke.fetch(client),
-            wikipedia.fetch(client),
-            hackernews.fetch(client),
             news.fetch(client),
             calendar_src.fetch(),
             email_src.fetch(),
             return_exceptions=True,
         )
 
-    labels = ["weather", "crypto", "quote", "joke", "wikipedia", "hackernews", "news", "calendar", "email"]
+    labels = ["weather", "crypto", "quote", "news", "calendar", "email"]
     out = {}
     for label, r in zip(labels, results):
         if isinstance(r, Exception):

@@ -3,11 +3,15 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
+from dotenv import load_dotenv
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+# .env must win over OS-level env vars (e.g. shells that pre-set ANTHROPIC_API_KEY="").
+load_dotenv(PROJECT_ROOT / ".env", override=True)
 
 
 class Settings(BaseSettings):
@@ -24,8 +28,8 @@ class Settings(BaseSettings):
     printer_mac: str = ""
     printer_width_px: int = 384
 
-    groq_api_key: str = ""
-    groq_model: str = "llama-3.3-70b-versatile"
+    anthropic_api_key: str = ""
+    anthropic_model: str = "claude-haiku-4-5"
 
     weather_lat: float = 53.35
     weather_lon: float = -6.26

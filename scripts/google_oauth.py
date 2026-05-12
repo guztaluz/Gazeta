@@ -43,7 +43,7 @@ def main() -> None:
     token_path.write_text(creds.to_json())
 
     print(f"OK. Token written to {token_path}")
-    print("Calendar + Gmail sources are now usable.")
+    print(f"Granted scopes: {', '.join(SCOPES)}")
 
 
 if __name__ == "__main__":

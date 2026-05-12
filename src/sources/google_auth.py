@@ -11,7 +11,6 @@ from src.config import get_settings
 
 SCOPES = [
     "https://www.googleapis.com/auth/calendar.readonly",
-    "https://www.googleapis.com/auth/gmail.readonly",
 ]
 
 

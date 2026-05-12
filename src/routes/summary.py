@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from datetime import date
 
 import httpx
@@ -9,23 +10,25 @@ import structlog
 from fastapi import APIRouter, HTTPException
 
 from src.ai import client as ai_client
-from src.ai.prompts import SUMMARY_PROMPT
+from src.ai.prompts import SUMMARY_SYSTEM, USER_TEMPLATE
 from src.printer.driver import get_driver
 from src.printer.renderer import render_html_to_png, render_template
 from src.sources import (
     calendar as calendar_src,
     crypto,
     email as email_src,
-    hackernews,
-    joke,
     news,
     quote,
     weather,
-    wikipedia,
 )
 
 router = APIRouter()
 log = structlog.get_logger()
+
+_SECTION_RE = re.compile(r"###\s*([A-ZÁÉÍÓÚÂÊÔÃÕÇ]+)\s*###", re.IGNORECASE)
+
+_PT_DOW = ["SEG", "TER", "QUA", "QUI", "SEX", "SÁB", "DOM"]
+_PT_MON = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"]
 
 
 async def _gather_sources() -> dict:
@@ -34,46 +37,77 @@ async def _gather_sources() -> dict:
             weather.fetch(client),
             crypto.fetch(client),
             quote.fetch(),
-            joke.fetch(client),
-            wikipedia.fetch(client),
-            hackernews.fetch(client),
             news.fetch(client),
             calendar_src.fetch(),
             email_src.fetch(),
             return_exceptions=True,
         )
-    labels = ["weather", "crypto", "quote", "joke", "wikipedia",
-              "hackernews", "news", "calendar", "email"]
+    labels = ["weather", "crypto", "quote", "news", "calendar", "email"]
     out: dict = {}
     for label, r in zip(labels, results):
         out[label] = {"error": repr(r)} if isinstance(r, Exception) else r
     return out
 
 
+def _parse_sections(text: str) -> dict[str, list[str]]:
+    """Split LLM output on '### NAME ###' headers into {name: [paragraphs]}."""
+    parts = _SECTION_RE.split(text)
+    sections: dict[str, list[str]] = {}
+    for i in range(1, len(parts) - 1, 2):
+        name = parts[i].lower()
+        content = parts[i + 1].strip()
+        paragraphs = [p.strip() for p in content.split("\n\n") if p.strip()]
+        if paragraphs:
+            sections[name] = paragraphs
+    return sections
+
+
 def _split_paragraphs(text: str) -> list[str]:
     return [p.strip() for p in text.split("\n\n") if p.strip()]
+
+
+def _format_date_strip(today: date) -> tuple[str, str]:
+    dow = _PT_DOW[today.weekday()]
+    mon = _PT_MON[today.month - 1]
+    issue = f"{today.timetuple().tm_yday:03d}"
+    left = f"{dow} {today.day:02d} {mon} {today.year}"
+    right = f"Dublin · Ed. {issue}".upper()
+    return left, right
 
 
 @router.post("/print/summary")
 async def print_summary() -> dict:
     data = await _gather_sources()
 
-    prompt = SUMMARY_PROMPT.format(data_json=json.dumps(data, ensure_ascii=False, default=str))
+    user_msg = USER_TEMPLATE.format(
+        data_json=json.dumps(data, ensure_ascii=False, default=str)
+    )
 
     try:
-        narrative = await ai_client.generate(prompt)
+        narrative = await ai_client.generate(SUMMARY_SYSTEM, user_msg)
+        sections = _parse_sections(narrative)
+        if not sections:
+            sections = {"nota": _split_paragraphs(narrative)}
     except Exception as e:
         log.error("llm_failed", error=str(e))
-        narrative = _fallback_narrative(data)
+        sections = _fallback_sections(data)
 
     today = date.today()
+    issue_no = f"{today.timetuple().tm_yday:03d}"
+    date_left, date_right = _format_date_strip(today)
+
+    news_buckets = _build_news_buckets(data)
+
     html = render_template(
         "summary.html.j2",
-        date_human=today.strftime("%A, %d %b %Y"),
-        narrative_paragraphs=_split_paragraphs(narrative),
-        weather=data.get("weather", {}),
-        crypto=data.get("crypto", {}),
-        quote=data.get("quote", {}),
+        date_strip_left=date_left,
+        date_strip_right=date_right,
+        issue_no=issue_no,
+        sections=sections,
+        weather=data.get("weather") or {},
+        crypto=data.get("crypto") or {},
+        quote=data.get("quote") or {},
+        news_buckets=news_buckets,
     )
 
     try:
@@ -93,22 +127,35 @@ async def print_summary() -> dict:
     return {"status": "ok", "path": str(path), "bytes": len(png)}
 
 
-def _fallback_narrative(data: dict) -> str:
-    """Used only if the LLM call fails — keep the morning summary alive."""
-    w = data.get("weather", {})
-    cal = data.get("calendar", {})
-    lines = []
-    if w and not w.get("error"):
-        lines.append(
-            f"Dublin today: {w.get('summary')}, "
-            f"{int(round(w.get('temp_min_c') or 0))}-{int(round(w.get('temp_max_c') or 0))} C, "
-            f"{w.get('precip_prob')}% rain. "
-            f"{'Take a jacket.' if w.get('wear_jacket') else 'Should be fine without a jacket.'}"
-        )
-    events = (cal or {}).get("events") or []
+_NEWS_BUCKETS = [
+    ("dublin", "Dublin", "map-pin"),
+    ("tech",   "Tech",   "cpu"),
+    ("world",  "Mundo",  "globe"),
+]
+
+
+def _build_news_buckets(data: dict, per_bucket: int = 4) -> list[dict]:
+    """Assemble the Notícias widget from the RSS news source."""
+    news_data = data.get("news") or {}
+    if news_data.get("error"):
+        return []
+    out: list[dict] = []
+    for key, label, icon_name in _NEWS_BUCKETS:
+        items = [i for i in (news_data.get(key) or []) if i.get("title")][:per_bucket]
+        if not items:
+            continue
+        out.append({"label": label, "icon": icon_name, "headlines": items})
+    return out
+
+
+def _fallback_sections(data: dict) -> dict[str, list[str]]:
+    cal = data.get("calendar") or {}
+    events = cal.get("events") or []
     if events:
-        lines.append("Today: " + "; ".join(e["summary"] for e in events[:3]) + ".")
+        agenda = "Hoje: " + "; ".join(e["summary"] for e in events[:3]) + "."
     else:
-        lines.append("Calendar is open today.")
-    lines.append("LLM unavailable; printed the fallback briefing.")
-    return "\n\n".join(lines)
+        agenda = "Agenda livre hoje — um bom dia para fazer uma coisa de propósito."
+    return {
+        "agenda": [agenda],
+        "piada": ["Por que o livro de matemática é triste? Porque tem muitos problemas."],
+    }

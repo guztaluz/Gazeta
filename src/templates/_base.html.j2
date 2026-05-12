@@ -1,41 +1,281 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
 <meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
 <style>
   @page { size: 384px auto; margin: 0; }
   html, body {
-    margin: 0;
-    padding: 0;
-    background: #fff;
-    color: #000;
+    margin: 0; padding: 0;
+    background: #fff; color: #000;
     -webkit-font-smoothing: none;
     text-rendering: geometricPrecision;
   }
   body {
-    width: 368px;
-    padding: 12px 8px 16px 8px;
-    font-family: "JetBrains Mono", "Menlo", "DejaVu Sans Mono", monospace;
-    font-size: 16px;
-    line-height: 1.35;
+    width: 384px;
+    font-family: "Inter", "Helvetica Neue", system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.4;
+    font-weight: 500;
+    padding-bottom: 12px;
+  }
+  .mono { font-family: "JetBrains Mono", "Menlo", monospace; }
+
+  /* ─── Masthead ─────────────────────────── */
+  .masthead {
+    font-family: "Archivo Black", "Impact", sans-serif;
+    font-size: 70px;
+    line-height: 0.82;
+    letter-spacing: -3px;
+    margin: 14px 10px 0 10px;
+  }
+  .datestrip {
+    margin: 4px 10px 10px 10px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    border-top: 3px solid black;
+    border-bottom: 1px solid black;
+    padding: 4px 0;
+    display: flex;
+    justify-content: space-between;
+  }
+  .greeting {
+    background: black; color: white;
+    padding: 10px 10px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    text-align: center;
+    margin: 0 0 10px 0;
+  }
+
+  /* ─── Widget shell ─────────────────────── */
+  .widget {
+    margin: 6px 10px;
+    border: 2px solid black;
+    overflow: hidden;
+  }
+  .widget-head {
+    background: black; color: white;
+    padding: 6px 10px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+  .widget-body { padding: 10px; }
+  .widget p:first-child { margin-top: 0; }
+  .widget p:last-child { margin-bottom: 0; }
+  p { margin: 0 0 6px 0; }
+
+  /* ─── 2-up row ────────────────────────── */
+  .row {
+    display: flex;
+    gap: 6px;
+    margin: 6px 10px;
+  }
+  .row .widget {
+    flex: 1;
+    margin: 0;
+    min-width: 0;
+  }
+
+  /* ─── Hero & numbers ──────────────────── */
+  .hero {
+    font-family: "Inter", sans-serif;
+    font-size: 38px;
+    font-weight: 900;
+    letter-spacing: -2px;
+    line-height: 1;
+  }
+  .hero-sub {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  /* ─── Weather widget ──────────────────── */
+  .weather {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .weather-left  { flex: 0 0 auto; }
+  .weather-right {
+    flex: 1;
+    font-size: 13px;
+    line-height: 1.5;
+    text-align: right;
+  }
+  .weather-right .cond {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    font-weight: 700;
+    margin-bottom: 3px;
+  }
+  .chip {
+    display: inline-block;
+    background: black; color: white;
+    padding: 3px 8px;
+    margin-top: 6px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 3px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  /* ─── Market widget ───────────────────── */
+  .market-price {
+    font-family: "Inter", sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+  }
+  .market-change {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-top: 3px;
+  }
+
+  /* ─── Body text widgets ───────────────── */
+  .prose {
+    font-family: "Inter", sans-serif;
+    font-size: 14px;
+    line-height: 1.45;
     font-weight: 500;
   }
-  h1 { font-size: 22px; margin: 0 0 6px 0; letter-spacing: -0.5px; }
-  h2 { font-size: 18px; margin: 10px 0 4px 0; }
-  p  { margin: 0 0 10px 0; }
-  .meta { font-size: 13px; margin-bottom: 8px; }
-  .rule {
-    border: none;
-    border-top: 1px dashed #000;
-    margin: 12px 0;
+  .joke {
+    font-family: "Inter", sans-serif;
+    font-size: 14px;
+    line-height: 1.4;
+    font-style: italic;
+    font-weight: 500;
   }
-  .footer {
-    margin-top: 14px;
+  .quote {
+    font-family: "JetBrains Mono", monospace;
+    font-style: italic;
+    font-size: 13px;
+    line-height: 1.45;
+    font-weight: 500;
+  }
+
+  /* ─── Forecast row (7-day) ───────────── */
+  .forecast-divider {
+    border-top: 1px dashed black;
+    margin: 10px -2px 8px -2px;
+  }
+  .forecast-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 2px;
+  }
+  .fc-cell {
+    flex: 1;
+    text-align: center;
+    font-family: "JetBrains Mono", monospace;
+    min-width: 0;
+  }
+  .fc-day {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 3px;
+  }
+  .fc-icon { margin: 1px 0 3px 0; line-height: 0; }
+  .fc-max {
+    font-family: "Inter", sans-serif;
+    font-weight: 800;
+    font-size: 12px;
+    line-height: 1.1;
+  }
+  .fc-min {
+    font-family: "Inter", sans-serif;
+    font-weight: 500;
+    font-size: 10px;
+    line-height: 1.1;
+    margin-top: 1px;
+  }
+
+  /* ─── News widget ─────────────────────── */
+  .news-bucket { margin-bottom: 9px; }
+  .news-bucket:last-child { margin-bottom: 0; }
+  .news-label {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .news-item {
+    margin-bottom: 7px;
+    border-left: 2px solid black;
+    padding-left: 7px;
+  }
+  .news-item:last-child { margin-bottom: 0; }
+  .news-title {
+    font-family: "Inter", sans-serif;
     font-size: 13px;
     line-height: 1.3;
+    font-weight: 600;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
-  .row { display: flex; justify-content: space-between; gap: 8px; }
-  .strong { font-weight: 700; }
+  .news-summary {
+    font-family: "Inter", sans-serif;
+    font-size: 11px;
+    line-height: 1.35;
+    font-weight: 400;
+    margin-top: 2px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* ─── Footer ──────────────────────────── */
+  .tear {
+    margin: 14px 0 4px 0;
+    text-align: center;
+    font-size: 14px;
+    letter-spacing: 10px;
+  }
+  .colophon {
+    text-align: center;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 9px;
+    letter-spacing: 3px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
 </style>
 </head>
 <body>
