@@ -41,12 +41,14 @@ async def preview_latest() -> FileResponse:
     return FileResponse(latest, media_type="image/png")
 
 
-# Routers wired in Phase D
+# Routers
 try:
     from src.routes.summary import router as summary_router
     from src.routes.raw import router as raw_router
+    from src.routes.note import router as note_router
 
     app.include_router(summary_router)
     app.include_router(raw_router)
+    app.include_router(note_router)
 except ImportError:
     log.info("routes_not_yet_wired")

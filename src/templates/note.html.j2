@@ -1,0 +1,48 @@
+{% extends "_base.html.j2" %}
+{% from "_icons.html.j2" import icon %}
+{% block content %}
+
+{# ─── Plain note ─────────────────────────────── #}
+{% if kind == "note" %}
+<div class="masthead" style="font-size:34px;">NOTA</div>
+<div class="datestrip"><span>{{ date_strip }}</span><span>NoteKeep</span></div>
+<div class="widget">
+  <div class="widget-head"><span>{{ icon("star", 16) }} &nbsp;{{ title or "Nota" }}</span></div>
+  <div class="widget-body prose">
+    {% for p in paragraphs %}<p>{{ p }}</p>{% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{# ─── Shopping list (categorized checklist) ──── #}
+{% if kind == "shopping" %}
+<div class="masthead" style="font-size:30px;">COMPRAS</div>
+<div class="datestrip"><span>{{ date_strip }}</span><span>{{ title or "Lista" }}</span></div>
+{% for section in sections %}
+<div class="widget">
+  <div class="widget-head"><span>{{ icon("map-pin", 14) }} &nbsp;{{ section.name }}</span></div>
+  <div class="widget-body">
+    {% for item in section["things"] %}
+    <div class="check-item"><span class="check-box"></span>{{ item }}</div>
+    {% endfor %}
+  </div>
+</div>
+{% endfor %}
+{% endif %}
+
+{# ─── Recipe ──────────────────────────────────── #}
+{% if kind == "recipe" %}
+<div class="masthead" style="font-size:30px;">RECEITA</div>
+<div class="datestrip"><span>{{ date_strip }}</span><span>NoteKeep</span></div>
+<div class="widget">
+  <div class="widget-head"><span>{{ icon("coffee", 16) }} &nbsp;{{ title or "Receita" }}</span></div>
+  <div class="widget-body prose">
+    {% for p in paragraphs %}<p>{{ p }}</p>{% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="tear">·  ✂  ·  ✂  ·</div>
+<div class="colophon">Gazeta Luz · NoteKeep</div>
+
+{% endblock %}

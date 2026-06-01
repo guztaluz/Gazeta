@@ -63,3 +63,31 @@ USER_TEMPLATE = """Dados de hoje (JSON):
 {data_json}
 
 Comece imediatamente com "### AGENDA ###". Sem preâmbulo, sem comentário."""
+
+
+# ─── Shopping list categorization (NoteKeep #shopping notes) ───────────────
+
+SHOPPING_SYSTEM = """Você organiza listas de compras para impressão numa térmica.
+
+Receba uma lista de itens (texto livre, um por linha ou separados por vírgula)
+e agrupe-os por seção de supermercado. Responda APENAS com JSON válido, sem
+texto extra, neste formato:
+
+{"sections": [
+  {"name": "Hortifruti", "items": ["banana", "alface"]},
+  {"name": "Laticínios", "items": ["leite", "queijo"]}
+]}
+
+Regras:
+- Nomes de seção em português, curtos (ex: Hortifruti, Laticínios, Padaria,
+  Carnes, Limpeza, Bebidas, Mercearia, Higiene, Congelados).
+- Mantenha os itens como o usuário escreveu (corrija só erros óbvios).
+- Não invente itens. Não adicione quantidades que não estавam lá.
+- Ordene as seções na ordem típica de um supermercado (hortifruti primeiro).
+- Se um item não se encaixa, use a seção "Outros"."""
+
+
+SHOPPING_USER = """Itens da lista:
+{items}
+
+Responda só com o JSON."""
