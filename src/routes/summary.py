@@ -96,7 +96,7 @@ async def print_summary() -> dict:
     issue_no = f"{today.timetuple().tm_yday:03d}"
     date_left, date_right = _format_date_strip(today)
 
-    news_buckets = _build_news_buckets(data, per_bucket=3)
+    news_buckets = _build_news_buckets(data)
 
     ctx = dict(
         date_strip_left=date_left,
@@ -116,6 +116,9 @@ async def print_summary() -> dict:
     driver = get_driver()
     last_path = None
     total_bytes = 0
+
+    # Render all blocks first, skip blank ones, so we know which is truly last.
+    rendered: list[tuple[str, bytes]] = []
     for block in blocks:
         html = render_template("summary_block.html.j2", block=block, **ctx)
         try:
@@ -123,12 +126,18 @@ async def print_summary() -> dict:
         except Exception as e:
             log.error("render_failed", block=block, error=str(e))
             raise HTTPException(status_code=500, detail=f"render failed ({block}): {e}") from e
-        # Skip near-empty blocks (e.g. no news today) to avoid blank feeds.
         if _is_blank(png):
             log.info("block_skipped_blank", block=block)
             continue
+        rendered.append((block, png))
+
+    # Small feed between blocks so they sit close together; full feed only on
+    # the last block to clear the tear edge.
+    GAP_FEED = 2
+    for i, (block, png) in enumerate(rendered):
+        is_last = i == len(rendered) - 1
         try:
-            last_path = await driver.print(png)
+            last_path = await driver.print(png, feed_lines=None if is_last else GAP_FEED)
             total_bytes += len(png)
         except Exception as e:
             log.error("driver_failed", block=block, error=str(e))
@@ -152,21 +161,22 @@ def _is_blank(png_bytes: bytes) -> bool:
     return black < (w * h) * 0.002
 
 
+# (key, label, icon, how many items to show). "world" already includes a tech
+# story (folded in by src/sources/news.py), so we surface 4 there.
 _NEWS_BUCKETS = [
-    ("dublin", "Dublin", "map-pin"),
-    ("tech",   "Tech",   "cpu"),
-    ("world",  "Mundo",  "globe"),
+    ("dublin", "Dublin", "map-pin", 3),
+    ("world",  "Mundo",  "globe",   4),
 ]
 
 
-def _build_news_buckets(data: dict, per_bucket: int = 4) -> list[dict]:
+def _build_news_buckets(data: dict) -> list[dict]:
     """Assemble the Notícias widget from the RSS news source."""
     news_data = data.get("news") or {}
     if news_data.get("error"):
         return []
     out: list[dict] = []
-    for key, label, icon_name in _NEWS_BUCKETS:
-        items = [i for i in (news_data.get(key) or []) if i.get("title")][:per_bucket]
+    for key, label, icon_name, count in _NEWS_BUCKETS:
+        items = [i for i in (news_data.get(key) or []) if i.get("title")][:count]
         if not items:
             continue
         out.append({"label": label, "icon": icon_name, "headlines": items})

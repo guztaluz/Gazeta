@@ -35,7 +35,7 @@ def _write_latest(output_dir: Path, png_bytes: bytes) -> Path:
 
 
 class Driver(Protocol):
-    async def print(self, png_bytes: bytes) -> Path: ...
+    async def print(self, png_bytes: bytes, feed_lines: int | None = None) -> Path: ...
 
 
 class MockDriver:
@@ -45,7 +45,7 @@ class MockDriver:
         self.output_dir = output_dir
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-    async def print(self, png_bytes: bytes) -> Path:
+    async def print(self, png_bytes: bytes, feed_lines: int | None = None) -> Path:
         path = _write_latest(self.output_dir, png_bytes)
         log.info("mock_print", path=str(path), bytes=len(png_bytes))
         return path
@@ -79,19 +79,22 @@ class BlePrinterDriver:
         self.output_dir = output_dir
         self.energy = energy
 
-    async def print(self, png_bytes: bytes) -> Path:
+    async def print(self, png_bytes: bytes, feed_lines: int | None = None) -> Path:
         from PIL import Image
 
         from src.printer import protocol as p
 
         img = Image.open(io.BytesIO(png_bytes))
         energy = self.energy if self.energy is not None else p.DEFAULT_ENERGY
+        feed = p.DEFAULT_FEED_LINES if feed_lines is None else feed_lines
 
         # Control commands match the captured app exactly (SET_QUALITY 0x33,
-        # SET_ENERGY 0x6b12, APPLY 00 01, FEED 40). Paced to print speed.
-        payload = p.image_to_commands(img, energy=energy)
+        # SET_ENERGY 0x6b12, APPLY 00 01). Feed is per-call so consecutive
+        # blocks can sit close together (small feed) and only the final block
+        # feeds enough to clear the tear edge.
+        payload = p.image_to_commands(img, energy=energy, feed_lines=feed)
         await self._print_one(payload, rows=img.height)
-        log.info("ble_print", mac=self.mac, rows=img.height, bytes=len(payload))
+        log.info("ble_print", mac=self.mac, rows=img.height, bytes=len(payload), feed=feed)
 
         if self.output_dir is not None:
             return _write_latest(self.output_dir, png_bytes)

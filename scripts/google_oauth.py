@@ -1,16 +1,25 @@
-"""One-time OAuth setup for Google Calendar + Gmail.
+"""One-time OAuth setup for Google Calendar.
 
 Prerequisites:
 1. Go to https://console.cloud.google.com/, create a new project (or use one).
-2. Enable both APIs: Google Calendar API and Gmail API.
+2. Enable the Google Calendar API.
 3. APIs & Services → OAuth consent screen → External → fill the basics.
-   Add your own email as a Test User. Scopes: leave default.
-4. APIs & Services → Credentials → Create credentials → OAuth client ID.
+4. *** IMPORTANT — stop weekly token expiry ***
+   On the OAuth consent screen, set Publishing status to "In production"
+   (Publish app → Confirm). While the app is in "Testing", Google REVOKES the
+   refresh token after 7 days, which makes the agenda silently fall back to a
+   generic message. Production status keeps the refresh token alive
+   indefinitely. (You can ignore the verification warning — a personal app
+   used only by you doesn't need Google verification.)
+5. APIs & Services → Credentials → Create credentials → OAuth client ID.
    Application type: Desktop app. Download the JSON.
-5. Save it as secrets/client_secret.json in this repo.
-6. Run this script: python scripts/google_oauth.py
+6. Save it as secrets/client_secret.json in this repo.
+7. Run this script: python scripts/google_oauth.py
    A browser tab opens; sign in, click Continue past the "unverified app" warning.
-7. The token is written to secrets/google_token.json. You're done.
+8. The token is written to secrets/google_token.json. You're done.
+
+If the agenda ever shows generic text again, the token expired — re-run this
+script (and make sure step 4 is done so it doesn't recur).
 """
 from __future__ import annotations
 

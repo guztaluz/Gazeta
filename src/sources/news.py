@@ -22,6 +22,9 @@ FEEDS: dict[str, list[str]] = {
     ],
 }
 
+# Tech is no longer its own printed category — it's folded into "world" so the
+# Mundo block carries world news plus one tech story. See fetch().
+
 PER_FEED = 5
 PER_BUCKET = 8
 
@@ -74,29 +77,45 @@ async def _fetch_feed(client: httpx.AsyncClient, url: str) -> list[dict[str, Any
     return items
 
 
+def _dedup(items: list[dict]) -> list[dict]:
+    seen: set[str] = set()
+    out: list[dict] = []
+    for item in items:
+        key = item["title"].strip().lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(item)
+    return out
+
+
 async def fetch(client: httpx.AsyncClient | None = None) -> dict:
     own = client is None
     c = client or httpx.AsyncClient(timeout=5, headers={"User-Agent": "gazeta/0.1"})
     try:
-        out: dict[str, list] = {}
+        raw: dict[str, list] = {}
         for bucket, urls in FEEDS.items():
             results = await asyncio.gather(*(_fetch_feed(c, u) for u in urls))
             merged: list[dict] = []
             for r in results:
                 merged.extend(r)
-            # Deduplicate by title to avoid the same story from both feeds.
-            seen: set[str] = set()
-            unique: list[dict] = []
-            for item in merged:
-                key = item["title"].lower()
-                if key in seen:
-                    continue
-                seen.add(key)
-                unique.append(item)
-            out[bucket] = unique[:PER_BUCKET]
+            raw[bucket] = _dedup(merged)
     except Exception as e:
         return {"error": str(e)}
     finally:
         if own:
             await c.aclose()
-    return out
+
+    # Two printed categories: Dublin, and "world" = world news + 1 tech story.
+    # Tag tech items so they're identifiable, and GUARANTEE one lands in the
+    # top of the world list (3 world + 1 tech, tech as the 4th item).
+    tech = raw.get("tech") or []
+    for t in tech:
+        t["tech"] = True
+    world = raw.get("world") or []
+    world_combined = _dedup(world[:3] + tech[:1] + world[3:] + tech[1:])
+
+    return {
+        "dublin": raw.get("dublin", [])[:PER_BUCKET],
+        "world": world_combined[:PER_BUCKET],
+    }

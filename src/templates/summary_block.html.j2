@@ -75,7 +75,7 @@
 <div class="widget">
   <div class="widget-head">
     <span>{{ icon("newspaper", 16) }} &nbsp;Notícias</span>
-    <span>{{ news_buckets | length }} fontes</span>
+    <span>{{ date_strip_left.split(' ')[0] }}</span>
   </div>
   <div class="widget-body">
     {% for bucket in news_buckets %}
