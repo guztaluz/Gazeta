@@ -96,10 +96,9 @@ async def print_summary() -> dict:
     issue_no = f"{today.timetuple().tm_yday:03d}"
     date_left, date_right = _format_date_strip(today)
 
-    news_buckets = _build_news_buckets(data)
+    news_buckets = _build_news_buckets(data, per_bucket=3)
 
-    html = render_template(
-        "summary.html.j2",
+    ctx = dict(
         date_strip_left=date_left,
         date_strip_right=date_right,
         issue_no=issue_no,
@@ -110,21 +109,47 @@ async def print_summary() -> dict:
         news_buckets=news_buckets,
     )
 
-    try:
-        png = await render_html_to_png(html)
-    except Exception as e:
-        log.error("render_failed", error=str(e))
-        raise HTTPException(status_code=500, detail=f"render failed: {e}") from e
-
+    # Render and print as separate, smaller jobs — the printer handles short
+    # images far more reliably than one long strip. The paper is continuous so
+    # the blocks read as one summary.
+    blocks = ["header", "agenda", "news", "closing"]
     driver = get_driver()
-    try:
-        path = await driver.print(png)
-    except Exception as e:
-        log.error("driver_failed", error=str(e))
-        raise HTTPException(status_code=500, detail=f"driver failed: {e}") from e
+    last_path = None
+    total_bytes = 0
+    for block in blocks:
+        html = render_template("summary_block.html.j2", block=block, **ctx)
+        try:
+            png = await render_html_to_png(html)
+        except Exception as e:
+            log.error("render_failed", block=block, error=str(e))
+            raise HTTPException(status_code=500, detail=f"render failed ({block}): {e}") from e
+        # Skip near-empty blocks (e.g. no news today) to avoid blank feeds.
+        if _is_blank(png):
+            log.info("block_skipped_blank", block=block)
+            continue
+        try:
+            last_path = await driver.print(png)
+            total_bytes += len(png)
+        except Exception as e:
+            log.error("driver_failed", block=block, error=str(e))
+            raise HTTPException(status_code=500, detail=f"driver failed ({block}): {e}") from e
+        log.info("block_printed", block=block, bytes=len(png))
 
-    log.info("summary_printed", path=str(path))
-    return {"status": "ok", "path": str(path), "bytes": len(png)}
+    log.info("summary_printed", path=str(last_path))
+    return {"status": "ok", "path": str(last_path), "bytes": total_bytes, "blocks": len(blocks)}
+
+
+def _is_blank(png_bytes: bytes) -> bool:
+    """True if the rendered PNG has essentially no black pixels."""
+    import io as _io
+
+    from PIL import Image
+
+    img = Image.open(_io.BytesIO(png_bytes)).convert("1")
+    px = img.load()
+    w, h = img.size
+    black = sum(1 for y in range(h) for x in range(w) if px[x, y] == 0)
+    return black < (w * h) * 0.002
 
 
 _NEWS_BUCKETS = [

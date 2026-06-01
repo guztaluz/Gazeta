@@ -26,10 +26,11 @@
   /* ─── Masthead ─────────────────────────── */
   .masthead {
     font-family: "Archivo Black", "Impact", sans-serif;
-    font-size: 70px;
-    line-height: 0.82;
-    letter-spacing: -3px;
-    margin: 14px 10px 0 10px;
+    font-size: 52px;
+    line-height: 0.9;
+    letter-spacing: -2px;
+    margin: 14px 10px 2px 10px;
+    white-space: nowrap;          /* keep "GAZETA LUZ" on one line */
   }
   .datestrip {
     margin: 4px 10px 10px 10px;
@@ -64,11 +65,11 @@
   }
   .widget-head {
     background: black; color: white;
-    padding: 6px 10px;
+    padding: 8px 10px;
     font-family: "JetBrains Mono", monospace;
-    font-size: 11px;
+    font-size: 14px;
     font-weight: 700;
-    letter-spacing: 2.5px;
+    letter-spacing: 2px;
     text-transform: uppercase;
     display: flex;
     justify-content: space-between;
@@ -198,26 +199,28 @@
     min-width: 0;
   }
   .fc-day {
-    font-size: 9px;
+    font-size: 12px;
     font-weight: 700;
     letter-spacing: 1px;
     text-transform: uppercase;
-    margin-bottom: 3px;
+    margin-bottom: 4px;
   }
-  .fc-icon { margin: 1px 0 3px 0; line-height: 0; }
+  .fc-icon { margin: 2px 0 4px 0; line-height: 0; }
   .fc-max {
     font-family: "Inter", sans-serif;
     font-weight: 800;
-    font-size: 12px;
+    font-size: 17px;
     line-height: 1.1;
   }
   .fc-min {
     font-family: "Inter", sans-serif;
     font-weight: 500;
-    font-size: 10px;
+    font-size: 13px;
     line-height: 1.1;
     margin-top: 1px;
   }
+  .forecast-row { margin-bottom: 8px; }
+  .forecast-row:last-child { margin-bottom: 0; }
 
   /* ─── News widget ─────────────────────── */
   .news-bucket { margin-bottom: 9px; }
@@ -256,7 +259,7 @@
     font-weight: 400;
     margin-top: 2px;
     display: -webkit-box;
-    -webkit-line-clamp: 2;
+    -webkit-line-clamp: 3;        /* up to 3 lines, no mid-word truncation */
     -webkit-box-orient: vertical;
     overflow: hidden;
   }

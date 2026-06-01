@@ -31,7 +31,7 @@ _WS_RE = re.compile(r"\s+")
 _TRAIL_RE = re.compile(r"(Read more on|Continue reading|The post .* appeared first.*)$", re.I)
 
 
-def _clean_summary(entry: Any, max_chars: int = 160) -> str:
+def _clean_summary(entry: Any, max_chars: int = 220) -> str:
     raw = getattr(entry, "summary", None) or getattr(entry, "description", "") or ""
     text = _TAG_RE.sub("", raw)
     text = _WS_RE.sub(" ", text).strip()
@@ -39,7 +39,13 @@ def _clean_summary(entry: Any, max_chars: int = 160) -> str:
     if not text:
         return ""
     if len(text) > max_chars:
-        text = text[:max_chars].rsplit(" ", 1)[0].rstrip(",;:.") + "…"
+        # Prefer cutting at a sentence end within range; else at a word.
+        window = text[:max_chars]
+        cut = max(window.rfind(". "), window.rfind("! "), window.rfind("? "))
+        if cut >= max_chars * 0.5:
+            text = window[:cut + 1]
+        else:
+            text = window.rsplit(" ", 1)[0].rstrip(",;:.") + "…"
     return text
 
 

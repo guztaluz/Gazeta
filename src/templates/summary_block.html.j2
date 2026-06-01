@@ -1,0 +1,157 @@
+{% extends "_base.html.j2" %}
+{% from "_icons.html.j2" import icon %}
+{% block content %}
+
+{# ═══ BLOCK: header (masthead + date + greeting + weather) ═══ #}
+{% if block == "header" %}
+<div class="masthead">GAZETA LUZ</div>
+<div class="datestrip">
+  <span>{{ date_strip_left }}</span>
+  <span>{{ date_strip_right }}</span>
+</div>
+<div class="greeting">Bom dia, Gustavo</div>
+
+{% if weather and not weather.error and weather.temp_min_c is not none %}
+<div class="widget">
+  <div class="widget-head">
+    <span>{{ icon(weather.icon, 18) }} &nbsp;Tempo</span>
+    <span>Dublin</span>
+  </div>
+  <div class="widget-body">
+    <div class="weather">
+      <div class="weather-left">
+        <div class="hero">
+          {{ weather.temp_min_c | round | int }}°<span style="font-weight:400;">/</span>{{ weather.temp_max_c | round | int }}°
+        </div>
+        {% if weather.current_c is not none %}
+        <div class="hero-sub">agora {{ weather.current_c | round | int }}°</div>
+        {% endif %}
+        {% if weather.wear_jacket %}<span class="chip">Jaqueta</span>{% endif %}
+      </div>
+      <div class="weather-right">
+        <div class="cond">{{ weather.summary }}</div>
+        <div>{{ weather.precip_prob }}% chuva</div>
+        <div>vento {{ weather.wind_kmh | round | int }} km/h</div>
+      </div>
+    </div>
+
+    {% if weather.forecast and weather.forecast | length > 1 %}
+    <div class="forecast-divider"></div>
+    {% for row in [weather.forecast[1:4], weather.forecast[4:7]] %}
+    {% if row %}
+    <div class="forecast-row">
+      {% for d in row %}
+      <div class="fc-cell">
+        <div class="fc-day">{{ d.weekday }}</div>
+        <div class="fc-icon">{{ icon(d.icon, 26) }}</div>
+        <div class="fc-max">{{ d.max_c | round | int }}°</div>
+        <div class="fc-min">{{ d.min_c | round | int }}°</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endfor %}
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+{% endif %}
+
+{# ═══ BLOCK: agenda ═══ #}
+{% if block == "agenda" and sections.agenda %}
+<div class="widget">
+  <div class="widget-head">
+    <span>{{ icon("calendar", 16) }} &nbsp;Agenda</span>
+    <span>{{ date_strip_left.split(' ')[0] }}</span>
+  </div>
+  <div class="widget-body prose">
+    {% for p in sections.agenda %}<p>{{ p }}</p>{% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{# ═══ BLOCK: news ═══ #}
+{% if block == "news" and news_buckets %}
+<div class="widget">
+  <div class="widget-head">
+    <span>{{ icon("newspaper", 16) }} &nbsp;Notícias</span>
+    <span>{{ news_buckets | length }} fontes</span>
+  </div>
+  <div class="widget-body">
+    {% for bucket in news_buckets %}
+    <div class="news-bucket">
+      <div class="news-label">
+        {{ icon(bucket.icon, 13) }}
+        <span>{{ bucket.label }}</span>
+      </div>
+      {% for item in bucket.headlines %}
+      <div class="news-item">
+        <div class="news-title">{{ item.title }}</div>
+        {% if item.summary %}<div class="news-summary">{{ item.summary }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{# ═══ BLOCK: closing (market + piada + reflexão) ═══ #}
+{% if block == "closing" %}
+{% if crypto and not crypto.error and (crypto.btc or crypto.eth) %}
+<div class="row">
+  {% if crypto.btc %}
+  <div class="widget">
+    <div class="widget-head">
+      <span>BTC</span>
+      <span>{{ icon("trending-up" if crypto.btc.arrow == "up" else "trending-down", 13) }}</span>
+    </div>
+    <div class="widget-body">
+      <div class="market-price">${{ "{:,}".format(crypto.btc.price_usd | round | int) }}</div>
+      <div class="market-change">{{ "%+.2f"|format(crypto.btc.change_24h_pct) }}% · 24h</div>
+    </div>
+  </div>
+  {% endif %}
+  {% if crypto.eth %}
+  <div class="widget">
+    <div class="widget-head">
+      <span>ETH</span>
+      <span>{{ icon("trending-up" if crypto.eth.arrow == "up" else "trending-down", 13) }}</span>
+    </div>
+    <div class="widget-body">
+      <div class="market-price">${{ "{:,}".format(crypto.eth.price_usd | round | int) }}</div>
+      <div class="market-change">{{ "%+.2f"|format(crypto.eth.change_24h_pct) }}% · 24h</div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if sections.piada %}
+<div class="widget">
+  <div class="widget-head">
+    <span>{{ icon("smile", 16) }} &nbsp;Piada do dia</span>
+  </div>
+  <div class="widget-body joke">
+    {% for p in sections.piada %}<p>{{ p }}</p>{% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% if quote and not quote.error %}
+<div class="widget">
+  <div class="widget-head">
+    <span>{{ icon("quote", 16) }} &nbsp;Reflexão</span>
+    <span>{{ quote.author }}</span>
+  </div>
+  <div class="widget-body quote">
+    "{{ quote.text }}"
+  </div>
+</div>
+{% endif %}
+
+<div class="tear">·  ✂  ·  ✂  ·</div>
+<div class="colophon">Gazeta Luz · Ed. {{ issue_no }}</div>
+{% endif %}
+
+{% endblock %}
