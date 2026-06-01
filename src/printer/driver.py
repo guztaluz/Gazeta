@@ -62,8 +62,12 @@ class BlePrinterDriver:
 
     WRITE_CHAR = "0000ae01-0000-1000-8000-00805f9b34fb"
     CHUNK_SIZE = 180
-    CHUNK_DELAY_S = 0.02
-    FLUSH_DELAY_S = 2.0
+    # Pace the send to the head's physical print speed. Blasting all data at
+    # once overruns the printer's line buffer on long jobs -> rows desync and
+    # overlap near the end. ~12ms per printed row keeps the buffer from
+    # overflowing. (One 48-byte row ~= 56 bytes on the wire incl. framing.)
+    ROW_TIME_S = 0.012
+    DRAIN_PER_ROW_S = 0.010   # extra wait at the end so the buffer fully prints
 
     def __init__(
         self,
@@ -83,26 +87,32 @@ class BlePrinterDriver:
         img = Image.open(io.BytesIO(png_bytes))
         energy = self.energy if self.energy is not None else p.DEFAULT_ENERGY
 
-        # Single print job, control commands matching the captured app exactly
-        # (SET_QUALITY 0x33, SET_ENERGY 0x6b12, APPLY 00 01, FEED 40). No priming.
+        # Control commands match the captured app exactly (SET_QUALITY 0x33,
+        # SET_ENERGY 0x6b12, APPLY 00 01, FEED 40). Paced to print speed.
         payload = p.image_to_commands(img, energy=energy)
-        await self._print_one(payload)
+        await self._print_one(payload, rows=img.height)
         log.info("ble_print", mac=self.mac, rows=img.height, bytes=len(payload))
 
         if self.output_dir is not None:
             return _write_latest(self.output_dir, png_bytes)
         return Path("(not saved)")
 
-    async def _print_one(self, payload: bytes) -> None:
+    async def _print_one(self, payload: bytes, rows: int) -> None:
         from bleak import BleakClient
 
-        async with BleakClient(self.mac, timeout=20.0) as client:
+        n_chunks = max(1, (len(payload) + self.CHUNK_SIZE - 1) // self.CHUNK_SIZE)
+        # Spread the per-row print time across the chunks so total send time
+        # tracks how long the head takes to physically print the page.
+        per_chunk_delay = (rows * self.ROW_TIME_S) / n_chunks
+
+        async with BleakClient(self.mac, timeout=30.0) as client:
             for i in range(0, len(payload), self.CHUNK_SIZE):
                 await client.write_gatt_char(
                     self.WRITE_CHAR, payload[i:i + self.CHUNK_SIZE], response=False
                 )
-                await asyncio.sleep(self.CHUNK_DELAY_S)
-            await asyncio.sleep(self.FLUSH_DELAY_S)
+                await asyncio.sleep(per_chunk_delay)
+            # Stay connected until the buffer has drained (scaled to height).
+            await asyncio.sleep(2.0 + rows * self.DRAIN_PER_ROW_S)
 
 
 def get_driver(settings: Settings | None = None) -> Driver:
