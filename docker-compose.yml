@@ -20,7 +20,9 @@ services:
     volumes:
       - /dev/bus/usb:/dev/bus/usb
       - ./.env:/app/.env:ro
-      - ./secrets:/app/secrets:ro
+      # secrets must be writable: the Google token is refreshed (~hourly) and
+      # the new token is written back here, so a :ro mount breaks the calendar.
+      - ./secrets:/app/secrets
       - ./output:/app/output
 
     env_file:
