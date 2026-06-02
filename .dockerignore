@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+.git/
+.gitignore
+output/*.png
+output/latest.png
+.env
+secrets/
+*.md
+tests/
+.pytest_cache/
+.ruff_cache/
+/tmp/

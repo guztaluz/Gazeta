@@ -1,0 +1,27 @@
+services:
+  gazeta:
+    build: .
+    container_name: gazeta
+    restart: unless-stopped
+
+    # Host network so the BLE/D-Bus stack and the :8080 API are reachable
+    # exactly as on the host. Simplest path for Bluetooth.
+    network_mode: host
+
+    # Bluetooth needs privileged access to the host adapter (hci0) and the
+    # ability to bring the interface up.
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+      - SYS_ADMIN
+
+    # Share the host's D-Bus + USB so bluetoothd in the container can reach
+    # the kernel adapter bound to the CSR dongle.
+    volumes:
+      - /dev/bus/usb:/dev/bus/usb
+      - ./.env:/app/.env:ro
+      - ./secrets:/app/secrets:ro
+      - ./output:/app/output
+
+    env_file:
+      - .env
