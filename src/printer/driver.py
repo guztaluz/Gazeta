@@ -100,6 +100,26 @@ class BlePrinterDriver:
             return _write_latest(self.output_dir, png_bytes)
         return Path("(not saved)")
 
+    async def _resolve_target(self):
+        """Return something BleakClient can connect to as a BLE (LE) device.
+
+        On Linux/BlueZ, connecting to a bare MAC string makes BlueZ guess the
+        transport and it picks Classic (BR/EDR) -> NotAvailable
+        'br-connection-profile-unavailable'. Discovering the device via an LE
+        scan first yields a BLEDevice tagged as LE, so the connection uses the
+        right transport. Falls back to the raw address (works on macOS).
+        """
+        from bleak import BleakScanner
+
+        try:
+            dev = await BleakScanner.find_device_by_address(self.mac, timeout=12.0)
+            if dev is not None:
+                return dev
+            log.warning("ble_device_not_found_in_scan", mac=self.mac)
+        except Exception as e:
+            log.warning("ble_scan_failed", error=str(e))
+        return self.mac
+
     async def _print_one(self, payload: bytes, rows: int) -> None:
         from bleak import BleakClient
 
@@ -108,7 +128,16 @@ class BlePrinterDriver:
         # tracks how long the head takes to physically print the page.
         per_chunk_delay = (rows * self.ROW_TIME_S) / n_chunks
 
-        async with BleakClient(self.mac, timeout=30.0) as client:
+        target = await self._resolve_target()
+        # pair=False: this printer has no BR/EDR pairing; BlueZ's default
+        # pair-before-connect stalls and times out on Linux. Disabling it makes
+        # the LE connect succeed. (No-op on macOS.) Longer timeout for headroom.
+        try:
+            client = BleakClient(target, timeout=40.0, pair=False)
+        except TypeError:
+            client = BleakClient(target, timeout=40.0)
+        await client.connect()
+        try:
             for i in range(0, len(payload), self.CHUNK_SIZE):
                 await client.write_gatt_char(
                     self.WRITE_CHAR, payload[i:i + self.CHUNK_SIZE], response=False
@@ -116,6 +145,8 @@ class BlePrinterDriver:
                 await asyncio.sleep(per_chunk_delay)
             # Stay connected until the buffer has drained (scaled to height).
             await asyncio.sleep(2.0 + rows * self.DRAIN_PER_ROW_S)
+        finally:
+            await client.disconnect()
 
 
 def get_driver(settings: Settings | None = None) -> Driver:

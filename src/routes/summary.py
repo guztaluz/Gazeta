@@ -140,8 +140,12 @@ async def print_summary() -> dict:
             last_path = await driver.print(png, feed_lines=None if is_last else GAP_FEED)
             total_bytes += len(png)
         except Exception as e:
-            log.error("driver_failed", block=block, error=str(e))
-            raise HTTPException(status_code=500, detail=f"driver failed ({block}): {e}") from e
+            import traceback
+            tb = traceback.format_exc()
+            log.error("driver_failed", block=block, etype=type(e).__name__,
+                      error=repr(e), traceback=tb)
+            detail = f"driver failed ({block}): {type(e).__name__}: {e!r}"
+            raise HTTPException(status_code=500, detail=detail) from e
         log.info("block_printed", block=block, bytes=len(png))
 
     log.info("summary_printed", path=str(last_path))
