@@ -26,6 +26,9 @@ tar czf - \
   --exclude='tmp' \
   . | ssh "${NAS_USER}@${NAS_HOST}" "tar xzf - -C '${NAS_PATH}'"
 
+# tar-over-ssh can drop the executable bit; restore it for shell scripts.
+ssh "${NAS_USER}@${NAS_HOST}" "chmod +x '${NAS_PATH}'/scripts/*.sh '${NAS_PATH}'/docker/*.sh 2>/dev/null || true"
+
 # UGOS user isn't in the docker group, so docker needs sudo. Use -t for the
 # sudo password prompt. (Run once with: ssh in and `sudo -v` if it complains.)
 echo "Building + starting container on the NAS (first build is slow)..."
