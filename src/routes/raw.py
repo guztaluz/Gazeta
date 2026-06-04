@@ -19,6 +19,19 @@ class RawPrint(BaseModel):
     image_base64: str | None = None
 
 
+@router.post("/printer/ping")
+async def printer_ping() -> dict:
+    """Poke the printer (connect + status query, no paper) to keep it awake.
+    Called periodically by a keep-warm cron. 200 if the printer responded."""
+    driver = get_driver()
+    try:
+        ok = await driver.keep_awake()
+    except Exception as e:
+        log.info("ping_unreachable", error=repr(e))
+        return {"status": "unreachable", "awake": False}
+    return {"status": "ok", "awake": ok}
+
+
 @router.post("/print/raw")
 async def print_raw(req: RawPrint) -> dict:
     driver = get_driver()

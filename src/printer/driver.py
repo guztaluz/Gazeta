@@ -36,6 +36,7 @@ def _write_latest(output_dir: Path, png_bytes: bytes) -> Path:
 
 class Driver(Protocol):
     async def print(self, png_bytes: bytes, feed_lines: int | None = None) -> Path: ...
+    async def keep_awake(self) -> bool: ...
 
 
 class MockDriver:
@@ -49,6 +50,9 @@ class MockDriver:
         path = _write_latest(self.output_dir, png_bytes)
         log.info("mock_print", path=str(path), bytes=len(png_bytes))
         return path
+
+    async def keep_awake(self) -> bool:
+        return True
 
 
 class BlePrinterDriver:
@@ -78,6 +82,35 @@ class BlePrinterDriver:
         self.mac = mac
         self.output_dir = output_dir
         self.energy = energy
+
+    async def keep_awake(self) -> bool:
+        """Connect, send a status query, disconnect — a no-paper 'poke' to reset
+        the printer's idle-sleep timer. Returns True if the connect succeeded.
+
+        This only helps if the printer sleeps on idle (and activity resets the
+        timer). If it hard-powers-off, nothing here can wake it.
+        """
+        from bleak import BleakClient
+
+        from src.printer import protocol as p
+
+        target = await self._resolve_target()
+        try:
+            client = BleakClient(target, timeout=20.0, pair=False)
+        except TypeError:
+            client = BleakClient(target, timeout=20.0)
+        try:
+            await client.connect()
+            # A real command (device-state query) is more likely to reset the
+            # idle timer than a bare connect.
+            await client.write_gatt_char(self.WRITE_CHAR, p.CMD_GET_DEV_STATE, response=False)
+            await asyncio.sleep(0.3)
+            return True
+        finally:
+            try:
+                await client.disconnect()
+            except Exception:
+                pass
 
     async def print(self, png_bytes: bytes, feed_lines: int | None = None) -> Path:
         from PIL import Image
