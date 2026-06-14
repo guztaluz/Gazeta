@@ -66,6 +66,14 @@ class BlePrinterDriver:
 
     WRITE_CHAR = "0000ae01-0000-1000-8000-00805f9b34fb"
     CHUNK_SIZE = 180
+    # The CSR clone routinely fails the first connect/GATT-discovery ("Service
+    # Discovery has not been performed yet" / "failed to discover services").
+    # Retry the connect+send, but ONLY while no bytes have gone out yet — once
+    # a block has started printing, retrying would double-print part of it.
+    CONNECT_RETRIES = 4
+    RETRY_BACKOFF_S = 1.5
+    # Let BlueZ finish resolving services after connect before we write.
+    POST_CONNECT_SETTLE_S = 0.6
     # Pace the send to the head's physical print speed. Blasting all data at
     # once overruns the printer's line buffer on long jobs -> rows desync and
     # overlap near the end. ~12ms per printed row keeps the buffer from
@@ -162,24 +170,48 @@ class BlePrinterDriver:
         per_chunk_delay = (rows * self.ROW_TIME_S) / n_chunks
 
         target = await self._resolve_target()
-        # pair=False: this printer has no BR/EDR pairing; BlueZ's default
-        # pair-before-connect stalls and times out on Linux. Disabling it makes
-        # the LE connect succeed. (No-op on macOS.) Longer timeout for headroom.
-        try:
-            client = BleakClient(target, timeout=40.0, pair=False)
-        except TypeError:
-            client = BleakClient(target, timeout=40.0)
-        await client.connect()
-        try:
-            for i in range(0, len(payload), self.CHUNK_SIZE):
-                await client.write_gatt_char(
-                    self.WRITE_CHAR, payload[i:i + self.CHUNK_SIZE], response=False
-                )
-                await asyncio.sleep(per_chunk_delay)
-            # Stay connected until the buffer has drained (scaled to height).
-            await asyncio.sleep(2.0 + rows * self.DRAIN_PER_ROW_S)
-        finally:
-            await client.disconnect()
+        last_err: Exception | None = None
+
+        for attempt in range(1, self.CONNECT_RETRIES + 1):
+            wrote_any = False
+            # pair=False: this printer has no BR/EDR pairing; BlueZ's default
+            # pair-before-connect stalls and times out on Linux. Disabling it
+            # makes the LE connect succeed. (No-op on macOS.)
+            try:
+                client = BleakClient(target, timeout=40.0, pair=False)
+            except TypeError:
+                client = BleakClient(target, timeout=40.0)
+            try:
+                await client.connect()
+                # Wait for GATT discovery to settle; writing too early raises
+                # "Service Discovery has not been performed yet" on this dongle.
+                await asyncio.sleep(self.POST_CONNECT_SETTLE_S)
+                for i in range(0, len(payload), self.CHUNK_SIZE):
+                    await client.write_gatt_char(
+                        self.WRITE_CHAR, payload[i:i + self.CHUNK_SIZE], response=False
+                    )
+                    wrote_any = True
+                    await asyncio.sleep(per_chunk_delay)
+                # Stay connected until the buffer has drained (scaled to height).
+                await asyncio.sleep(2.0 + rows * self.DRAIN_PER_ROW_S)
+                return  # success
+            except Exception as e:
+                last_err = e
+                log.warning("ble_attempt_failed", attempt=attempt,
+                            wrote_any=wrote_any, error=repr(e))
+                # If bytes already went out, retrying would double-print part of
+                # this block — bail instead of duplicating.
+                if wrote_any:
+                    raise
+            finally:
+                try:
+                    await client.disconnect()
+                except Exception:
+                    pass
+            await asyncio.sleep(self.RETRY_BACKOFF_S)
+
+        assert last_err is not None
+        raise last_err
 
 
 def get_driver(settings: Settings | None = None) -> Driver:
