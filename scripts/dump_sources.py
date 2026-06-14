@@ -15,8 +15,8 @@ from src.sources import (
     crypto,
     email as email_src,
     news,
-    quote,
     weather,
+    worldcup,
 )
 
 
@@ -25,14 +25,14 @@ async def main() -> None:
         results = await asyncio.gather(
             weather.fetch(client),
             crypto.fetch(client),
-            quote.fetch(),
+            worldcup.fetch(client),
             news.fetch(client),
             calendar_src.fetch(),
             email_src.fetch(),
             return_exceptions=True,
         )
 
-    labels = ["weather", "crypto", "quote", "news", "calendar", "email"]
+    labels = ["weather", "crypto", "worldcup", "news", "calendar", "email"]
     out = {}
     for label, r in zip(labels, results):
         if isinstance(r, Exception):

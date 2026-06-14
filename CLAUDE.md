@@ -277,11 +277,12 @@ h1 { font-size: 24px; }
 
 | Source | URL | Auth | Notes |
 |---|---|---|---|
-| Open-Meteo | https://open-meteo.com | None | Best free weather API. Dublin lat/lon: 53.35, -6.26 |
-| Google Calendar | https://developers.google.com/calendar | OAuth | One-time setup, store refresh token |
+| Open-Meteo | https://open-meteo.com | None | Best free weather API. Dublin lat/lon: 53.35, -6.26. We use `hourly` for today's strip (09/12/15/18/21) + `daily` for today's min/max hero. No 7-day forecast anymore. |
+| Google Calendar | https://developers.google.com/calendar | OAuth | One-time setup, store refresh token. `calendar.fetch()` returns today / tomorrow / upcoming. Recurring events only surface on the eve (tomorrow bucket), never repeated daily. |
 | Hacker News | https://github.com/HackerNews/API | None | Public Firebase, just fetch top stories |
 | Immich | self-hosted on NAS | API key | Has "on this day" built in |
-| RSS | local list | None | Use `feedparser` Python lib |
+| RSS | local list | None | `feedparser`. Feeds grouped by topic (tech, brasil, ciencia, irlanda, mundo), merged round-robin into one flat pool. The LLM curates 6-8 items in the `### NOTICIAS ###` section (by index), skipping the repetitive war-news loop. No Dublin/Mundo split. |
+| TheSportsDB | https://www.thesportsdb.com/api/v1/json/3/eventsday.php | None (free key "3") | FIFA World Cup (`src/sources/worldcup.py`, league id 4429). Per-day endpoint across a date window; the free next/past-league endpoints only return 1 event. Times are UTC → localized to Dublin. Brazil games flagged. |
 | Wikipedia | https://en.wikipedia.org/api/rest_v1/ | None | "On this day" endpoint |
 
 Add new sources as needed. Each should be its own file under `src/sources/` with a single `fetch() -> dict` function.
@@ -351,4 +352,4 @@ When working on this project:
 
 ---
 
-*Last updated: project inception. Update this file as architecture decisions are made.*
+*Last updated: 2026-06-14 — weather is now hourly (today), news is a single LLM-curated list (no Dublin/Mundo split, war-loop filtered), calendar is week-aware with eve-only recurring reminders, World Cup section added, joke + stoic quote removed. Update this file as architecture decisions are made.*

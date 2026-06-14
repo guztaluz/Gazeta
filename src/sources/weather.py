@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import httpx
 
@@ -20,8 +21,6 @@ _CODE = {
     85: "pancadas de neve", 86: "pancadas fortes de neve",
     95: "tempestade", 96: "tempestade com granizo", 99: "tempestade severa",
 }
-
-_PT_DOW = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"]
 
 
 def _icon(code: int) -> str:
@@ -51,9 +50,10 @@ async def fetch(client: httpx.AsyncClient | None = None) -> dict:
                 "latitude": s.weather_lat,
                 "longitude": s.weather_lon,
                 "daily": "weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max",
+                "hourly": "temperature_2m,weathercode,precipitation_probability",
                 "current": "temperature_2m,weathercode,wind_speed_10m",
                 "timezone": s.weather_tz,
-                "forecast_days": 7,
+                "forecast_days": 1,
             },
         )
         r.raise_for_status()
@@ -66,8 +66,8 @@ async def fetch(client: httpx.AsyncClient | None = None) -> dict:
 
     daily = data.get("daily", {})
     current = data.get("current", {})
+    hourly = data.get("hourly", {})
 
-    times = daily.get("time") or []
     codes = daily.get("weathercode") or []
     maxs = daily.get("temperature_2m_max") or []
     mins = daily.get("temperature_2m_min") or []
@@ -80,17 +80,7 @@ async def fetch(client: httpx.AsyncClient | None = None) -> dict:
     pop = pops[0] if pops else 0
     wind = winds[0] if winds else 0
 
-    forecast = []
-    for i in range(min(7, len(times))):
-        d = date.fromisoformat(times[i])
-        forecast.append({
-            "weekday": _PT_DOW[d.weekday()],
-            "date": d.isoformat(),
-            "code": codes[i] if i < len(codes) else 0,
-            "icon": _icon(codes[i] if i < len(codes) else 0),
-            "min_c": mins[i] if i < len(mins) else None,
-            "max_c": maxs[i] if i < len(maxs) else None,
-        })
+    hours = _build_hourly(hourly, ZoneInfo(s.weather_tz))
 
     return {
         "summary": _CODE.get(code, f"código {code}"),
@@ -101,5 +91,39 @@ async def fetch(client: httpx.AsyncClient | None = None) -> dict:
         "wind_kmh": wind,
         "current_c": current.get("temperature_2m"),
         "wear_jacket": (t_min is not None and t_min < 15) or pop >= 40,
-        "forecast": forecast,
+        "hourly": hours,
     }
+
+
+# Fixed checkpoints across the day — the whole arc, morning to night.
+_HOURS = (6, 9, 12, 15, 18, 21)
+
+
+def _build_hourly(hourly: dict, tz: ZoneInfo) -> list[dict]:
+    """Today's weather at 06/09/12/15/18/21 — a full-day strip."""
+    times = hourly.get("time") or []
+    if not times:
+        return []
+    temps = hourly.get("temperature_2m") or []
+    codes = hourly.get("weathercode") or []
+    pops = hourly.get("precipitation_probability") or []
+
+    # Map "YYYY-MM-DDTHH" -> index. Times are already in the requested timezone
+    # (Open-Meteo localizes when timezone= is passed).
+    index = {t[:13]: i for i, t in enumerate(times)}
+    today = datetime.now(tz).date().isoformat()
+
+    out: list[dict] = []
+    for h in _HOURS:
+        i = index.get(f"{today}T{h:02d}")
+        if i is None:
+            continue
+        c = codes[i] if i < len(codes) else 0
+        out.append({
+            "label": f"{h:02d}h",
+            "code": c,
+            "icon": _icon(c),
+            "temp_c": temps[i] if i < len(temps) else None,
+            "precip_prob": pops[i] if i < len(pops) else 0,
+        })
+    return out

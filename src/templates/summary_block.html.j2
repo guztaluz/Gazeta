@@ -35,17 +35,17 @@
       </div>
     </div>
 
-    {% if weather.forecast and weather.forecast | length > 1 %}
+    {% if weather.hourly %}
     <div class="forecast-divider"></div>
-    {% for row in [weather.forecast[1:4], weather.forecast[4:7]] %}
+    {% for row in [weather.hourly[0:3], weather.hourly[3:6]] %}
     {% if row %}
     <div class="forecast-row">
-      {% for d in row %}
+      {% for h in row %}
       <div class="fc-cell">
-        <div class="fc-day">{{ d.weekday }}</div>
-        <div class="fc-icon">{{ icon(d.icon, 26) }}</div>
-        <div class="fc-max">{{ d.max_c | round | int }}°</div>
-        <div class="fc-min">{{ d.min_c | round | int }}°</div>
+        <div class="fc-day">{{ h.label }}</div>
+        <div class="fc-icon">{{ icon(h.icon, 30) }}</div>
+        <div class="fc-max">{{ h.temp_c | round | int }}°</div>
+        <div class="fc-rain">{{ h.precip_prob | round | int }}% chuva</div>
       </div>
       {% endfor %}
     </div>
@@ -71,32 +71,24 @@
 {% endif %}
 
 {# ═══ BLOCK: news ═══ #}
-{% if block == "news" and news_buckets %}
+{% if block == "news" and news_items %}
 <div class="widget">
   <div class="widget-head">
     <span>{{ icon("newspaper", 16) }} &nbsp;Notícias</span>
     <span>{{ date_strip_left.split(' ')[0] }}</span>
   </div>
   <div class="widget-body">
-    {% for bucket in news_buckets %}
-    <div class="news-bucket">
-      <div class="news-label">
-        {{ icon(bucket.icon, 13) }}
-        <span>{{ bucket.label }}</span>
-      </div>
-      {% for item in bucket.headlines %}
-      <div class="news-item">
-        <div class="news-title">{{ item.title }}</div>
-        {% if item.summary %}<div class="news-summary">{{ item.summary }}</div>{% endif %}
-      </div>
-      {% endfor %}
+    {% for item in news_items %}
+    <div class="news-item">
+      <div class="news-title">{{ item.title }}</div>
+      {% if item.summary %}<div class="news-summary">{{ item.summary }}</div>{% endif %}
     </div>
     {% endfor %}
   </div>
 </div>
 {% endif %}
 
-{# ═══ BLOCK: closing (market + piada + reflexão) ═══ #}
+{# ═══ BLOCK: closing (market + Copa do Mundo) ═══ #}
 {% if block == "closing" %}
 {% if crypto and not crypto.error and (crypto.btc or crypto.eth) %}
 <div class="row">
@@ -127,25 +119,31 @@
 </div>
 {% endif %}
 
-{% if sections.piada %}
+{% if worldcup and not worldcup.error and (worldcup.results or worldcup.upcoming) %}
 <div class="widget">
   <div class="widget-head">
-    <span>{{ icon("smile", 16) }} &nbsp;Piada do dia</span>
+    <span>{{ icon("trophy", 16) }} &nbsp;Copa do Mundo</span>
+    <span>2026</span>
   </div>
-  <div class="widget-body joke">
-    {% for p in sections.piada %}<p>{{ p }}</p>{% endfor %}
-  </div>
-</div>
-{% endif %}
-
-{% if quote and not quote.error %}
-<div class="widget">
-  <div class="widget-head">
-    <span>{{ icon("quote", 16) }} &nbsp;Reflexão</span>
-    <span>{{ quote.author }}</span>
-  </div>
-  <div class="widget-body quote">
-    "{{ quote.text }}"
+  <div class="widget-body">
+    {% if worldcup.results %}
+    <div class="wc-section">Resultados</div>
+    {% for m in worldcup.results %}
+    <div class="wc-row{% if m.brazil %} wc-br{% endif %}">
+      <span class="wc-teams">{{ m.home }} <b>{{ m.home_score }}–{{ m.away_score }}</b> {{ m.away }}</span>
+      <span class="wc-meta">{% if m.live %}● VIVO{% else %}{{ m.day }}{% endif %}</span>
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% if worldcup.upcoming %}
+    <div class="wc-section">Próximos</div>
+    {% for m in worldcup.upcoming %}
+    <div class="wc-row{% if m.brazil %} wc-br{% endif %}">
+      <span class="wc-teams">{{ m.home }} x {{ m.away }}</span>
+      <span class="wc-meta">{{ m.day }} {{ m.time }}</span>
+    </div>
+    {% endfor %}
+    {% endif %}
   </div>
 </div>
 {% endif %}

@@ -7,29 +7,41 @@ from typing import Any
 import feedparser
 import httpx
 
+# Feeds grouped by topic Gustavo cares about. The topic tag travels with each
+# item so the LLM curation step can balance variety and skip the war-news loop.
+# Buckets are NOT printed separately anymore — everything is merged into one
+# flat pool that the LLM picks from.
 FEEDS: dict[str, list[str]] = {
-    "dublin": [
-        "https://www.rte.ie/news/rss/news-headlines.xml",
-        "https://www.thejournal.ie/feed/",
-    ],
-    "world": [
-        "https://feeds.bbci.co.uk/news/world/rss.xml",
-        "https://www.reuters.com/world/feeds/",
-    ],
     "tech": [
         "https://www.theverge.com/rss/index.xml",
         "https://feeds.arstechnica.com/arstechnica/index",
     ],
+    "brasil": [
+        "https://g1.globo.com/rss/g1/",
+        "https://www.bbc.com/portuguese/index.xml",
+    ],
+    "ciencia": [
+        "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml",
+        "https://www.sciencedaily.com/rss/top/science.xml",
+    ],
+    "irlanda": [
+        "https://www.rte.ie/news/rss/news-headlines.xml",
+        "https://www.thejournal.ie/feed/",
+    ],
+    # Kept only so genuinely major world news can surface; the LLM is told to
+    # ignore the repetitive war coverage unless something is truly urgent.
+    "mundo": [
+        "https://feeds.bbci.co.uk/news/world/rss.xml",
+    ],
 }
 
-# Tech is no longer its own printed category — it's folded into "world" so the
-# Mundo block carries world news plus one tech story. See fetch().
-
-PER_FEED = 5
-PER_BUCKET = 8
+PER_FEED = 6
+POOL_MAX = 32
 
 _TAG_RE = re.compile(r"<[^>]+>")
 _WS_RE = re.compile(r"\s+")
+# Video / clickbait prefixes — useless on paper, dropped before the LLM sees them.
+_VIDEO_RE = re.compile(r"^\s*(v[íi]deo|assista|veja o v[íi]deo|ao vivo|podcast)\b[:\s]", re.I)
 # Common trailing junk in feed summaries.
 _TRAIL_RE = re.compile(r"(Read more on|Continue reading|The post .* appeared first.*)$", re.I)
 
@@ -52,9 +64,9 @@ def _clean_summary(entry: Any, max_chars: int = 220) -> str:
     return text
 
 
-async def _fetch_feed(client: httpx.AsyncClient, url: str) -> list[dict[str, Any]]:
+async def _fetch_feed(client: httpx.AsyncClient, url: str, topic: str) -> list[dict[str, Any]]:
     try:
-        r = await client.get(url, timeout=5, follow_redirects=True)
+        r = await client.get(url, timeout=8, follow_redirects=True)
         r.raise_for_status()
         parsed = feedparser.parse(r.text)
     except Exception:
@@ -62,7 +74,7 @@ async def _fetch_feed(client: httpx.AsyncClient, url: str) -> list[dict[str, Any
     items: list[dict[str, Any]] = []
     for entry in parsed.entries[:PER_FEED]:
         title = (getattr(entry, "title", "") or "").strip()
-        if not title:
+        if not title or _VIDEO_RE.match(title):
             continue
         summary = _clean_summary(entry)
         # Drop summary that just repeats the title.
@@ -73,49 +85,49 @@ async def _fetch_feed(client: httpx.AsyncClient, url: str) -> list[dict[str, Any
             "summary": summary,
             "link": getattr(entry, "link", None),
             "published": getattr(entry, "published", None),
+            "topic": topic,
         })
     return items
-
-
-def _dedup(items: list[dict]) -> list[dict]:
-    seen: set[str] = set()
-    out: list[dict] = []
-    for item in items:
-        key = item["title"].strip().lower()
-        if key in seen:
-            continue
-        seen.add(key)
-        out.append(item)
-    return out
 
 
 async def fetch(client: httpx.AsyncClient | None = None) -> dict:
     own = client is None
     c = client or httpx.AsyncClient(timeout=5, headers={"User-Agent": "gazeta/0.1"})
     try:
-        raw: dict[str, list] = {}
-        for bucket, urls in FEEDS.items():
-            results = await asyncio.gather(*(_fetch_feed(c, u) for u in urls))
-            merged: list[dict] = []
-            for r in results:
-                merged.extend(r)
-            raw[bucket] = _dedup(merged)
+        jobs = [
+            _fetch_feed(c, url, topic)
+            for topic, urls in FEEDS.items()
+            for url in urls
+        ]
+        results = await asyncio.gather(*jobs)
     except Exception as e:
         return {"error": str(e)}
     finally:
         if own:
             await c.aclose()
 
-    # Two printed categories: Dublin, and "world" = world news + 1 tech story.
-    # Tag tech items so they're identifiable, and GUARANTEE one lands in the
-    # top of the world list (3 world + 1 tech, tech as the 4th item).
-    tech = raw.get("tech") or []
-    for t in tech:
-        t["tech"] = True
-    world = raw.get("world") or []
-    world_combined = _dedup(world[:3] + tech[:1] + world[3:] + tech[1:])
+    by_topic: dict[str, list[dict]] = {t: [] for t in FEEDS}
+    for r in results:
+        for item in r:
+            by_topic.setdefault(item["topic"], []).append(item)
 
-    return {
-        "dublin": raw.get("dublin", [])[:PER_BUCKET],
-        "world": world_combined[:PER_BUCKET],
-    }
+    # Round-robin across topics so every theme is represented in the pool (a
+    # straight concat + cap would starve whatever comes last). The LLM then
+    # picks the most interesting items for Gustavo (see prompts.NEWS rules).
+    queues = [list(by_topic[t]) for t in FEEDS]
+    pool: list[dict] = []
+    seen: set[str] = set()
+    while any(queues) and len(pool) < POOL_MAX:
+        for q in queues:
+            if not q:
+                continue
+            item = q.pop(0)
+            key = item["title"].strip().lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            pool.append(item)
+            if len(pool) >= POOL_MAX:
+                break
+
+    return {"pool": pool}

@@ -18,8 +18,8 @@ from src.sources import (
     crypto,
     email as email_src,
     news,
-    quote,
     weather,
+    worldcup,
 )
 
 router = APIRouter()
@@ -36,13 +36,13 @@ async def _gather_sources() -> dict:
         results = await asyncio.gather(
             weather.fetch(client),
             crypto.fetch(client),
-            quote.fetch(),
+            worldcup.fetch(client),
             news.fetch(client),
             calendar_src.fetch(),
             email_src.fetch(),
             return_exceptions=True,
         )
-    labels = ["weather", "crypto", "quote", "news", "calendar", "email"]
+    labels = ["weather", "crypto", "worldcup", "news", "calendar", "email"]
     out: dict = {}
     for label, r in zip(labels, results):
         out[label] = {"error": repr(r)} if isinstance(r, Exception) else r
@@ -79,13 +79,25 @@ def _format_date_strip(today: date) -> tuple[str, str]:
 async def print_summary() -> dict:
     data = await _gather_sources()
 
+    pool = (data.get("news") or {}).get("pool") or []
+    # The LLM only needs the agenda data as prose context; weather/market/cup
+    # are widgets it must not echo, so keep the JSON lean.
+    agenda_json = json.dumps(
+        {"calendar": data.get("calendar") or {}}, ensure_ascii=False, default=str
+    )
     user_msg = USER_TEMPLATE.format(
-        data_json=json.dumps(data, ensure_ascii=False, default=str)
+        data_json=agenda_json,
+        news_list=_format_news_list(pool),
     )
 
+    selected_news = pool[:7]  # fallback if the LLM section is missing/garbage
     try:
         narrative = await ai_client.generate(SUMMARY_SYSTEM, user_msg)
         sections = _parse_sections(narrative)
+        if "noticias" in sections:
+            picked = _select_news(pool, sections.pop("noticias"))
+            if picked:
+                selected_news = picked
         if not sections:
             sections = {"nota": _split_paragraphs(narrative)}
     except Exception as e:
@@ -96,8 +108,6 @@ async def print_summary() -> dict:
     issue_no = f"{today.timetuple().tm_yday:03d}"
     date_left, date_right = _format_date_strip(today)
 
-    news_buckets = _build_news_buckets(data)
-
     ctx = dict(
         date_strip_left=date_left,
         date_strip_right=date_right,
@@ -105,8 +115,8 @@ async def print_summary() -> dict:
         sections=sections,
         weather=data.get("weather") or {},
         crypto=data.get("crypto") or {},
-        quote=data.get("quote") or {},
-        news_buckets=news_buckets,
+        worldcup=data.get("worldcup") or {},
+        news_items=selected_news,
     )
 
     # Render and print as separate, smaller jobs — the printer handles short
@@ -165,36 +175,42 @@ def _is_blank(png_bytes: bytes) -> bool:
     return black < (w * h) * 0.002
 
 
-# (key, label, icon, how many items to show). "world" already includes a tech
-# story (folded in by src/sources/news.py), so we surface 4 there.
-_NEWS_BUCKETS = [
-    ("dublin", "Dublin", "map-pin", 3),
-    ("world",  "Mundo",  "globe",   4),
-]
+_MAX_NEWS = 8
 
 
-def _build_news_buckets(data: dict) -> list[dict]:
-    """Assemble the Notícias widget from the RSS news source."""
-    news_data = data.get("news") or {}
-    if news_data.get("error"):
-        return []
+def _format_news_list(pool: list[dict]) -> str:
+    """Numbered list of candidate headlines for the LLM to pick from."""
+    if not pool:
+        return "(nenhuma notícia disponível)"
+    lines = []
+    for i, item in enumerate(pool, 1):
+        topic = item.get("topic", "")
+        summary = item.get("summary") or ""
+        tail = f" — {summary}" if summary else ""
+        lines.append(f"{i}. [{topic}] {item.get('title', '')}{tail}")
+    return "\n".join(lines)
+
+
+def _select_news(pool: list[dict], section: list[str]) -> list[dict]:
+    """Map the LLM's chosen 1-based indices back to headline dicts."""
+    text = " ".join(section)
     out: list[dict] = []
-    for key, label, icon_name, count in _NEWS_BUCKETS:
-        items = [i for i in (news_data.get(key) or []) if i.get("title")][:count]
-        if not items:
-            continue
-        out.append({"label": label, "icon": icon_name, "headlines": items})
+    seen: set[int] = set()
+    for tok in re.findall(r"\d+", text):
+        idx = int(tok)
+        if 1 <= idx <= len(pool) and idx not in seen:
+            seen.add(idx)
+            out.append(pool[idx - 1])
+        if len(out) >= _MAX_NEWS:
+            break
     return out
 
 
 def _fallback_sections(data: dict) -> dict[str, list[str]]:
     cal = data.get("calendar") or {}
-    events = cal.get("events") or []
-    if events:
-        agenda = "Hoje: " + "; ".join(e["summary"] for e in events[:3]) + "."
+    today_ev = cal.get("today") or []
+    if today_ev:
+        agenda = "Hoje: " + "; ".join(e["summary"] for e in today_ev[:3]) + "."
     else:
         agenda = "Agenda livre hoje — um bom dia para fazer uma coisa de propósito."
-    return {
-        "agenda": [agenda],
-        "piada": ["Por que o livro de matemática é triste? Porque tem muitos problemas."],
-    }
+    return {"agenda": [agenda]}

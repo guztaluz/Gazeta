@@ -23,6 +23,7 @@ token*.json
 # Output
 output/*.png
 output/latest.png
+output/preview/
 !output/.gitkeep
 
 # OS
